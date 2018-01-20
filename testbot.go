@@ -10,19 +10,18 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/jasonlvhit/gocron"
 	"github.com/nlopes/slack"
 )
 
-func main() {
+func runSaturdayReminderCron(channel string, api *slack.Client) {
+	gocron.Every(2).Seconds().Do(PostMessage)
+	<-gocron.Start()
+}
 
-	token := os.Getenv("SLACK_TOKEN")
-	defaultChannel := os.Getenv("SLACK_CHANNEL")
-	api := slack.New(token)
-	rtm := api.NewRTM()
-	go rtm.ManageConnection()
-
+func PostMessage(channel string, api *slack.Client) {
 	const (
-		DEFAULT_MESSAGE_USERNAME         = "CalvaryBot"
+		DEFAULT_MESSAGE_USERNAME         = "SoccerBot"
 		DEFAULT_MESSAGE_THREAD_TIMESTAMP = ""
 		DEFAULT_MESSAGE_REPLY_BROADCAST  = false
 		DEFAULT_MESSAGE_ASUSER           = false
@@ -35,9 +34,7 @@ func main() {
 		DEFAULT_MESSAGE_MARKDOWN         = true
 		DEFAULT_MESSAGE_ESCAPE_TEXT      = true
 	)
-
-	// set a time for this message to go out
-	api.PostMessage(defaultChannel, "Hello World!", slack.PostMessageParameters{
+	api.PostMessage(channel, "Some text", slack.PostMessageParameters{
 		Username:    DEFAULT_MESSAGE_USERNAME,
 		User:        DEFAULT_MESSAGE_USERNAME,
 		AsUser:      DEFAULT_MESSAGE_ASUSER,
@@ -51,6 +48,40 @@ func main() {
 		Markdown:    DEFAULT_MESSAGE_MARKDOWN,
 		EscapeText:  DEFAULT_MESSAGE_ESCAPE_TEXT,
 	})
+}
+
+// func task(channel string, api *Client) {
+// 	fmt.Println("running task")
+// 	api.PostMessage(channel, "Hey guys I just came online! :tada: Tag me in a message by typing `@SoccerBot howdy` to see what I can do!", slack.PostMessageParameters{
+// 		Username:    "SoccerBot",
+// 		User:        "SoccerBot",
+// 		AsUser:      false,
+// 		Parse:       "",
+// 		LinkNames:   0,
+// 		Attachments: nil,
+// 		UnfurlLinks: false,
+// 		UnfurlMedia: true,
+// 		IconURL:     "",
+// 		IconEmoji:   ":soccer:",
+// 		Markdown:    true,
+// 		EscapeText:  true,
+// 	})
+// }
+
+func main() {
+
+	token := os.Getenv("SLACK_TOKEN")
+	defaultChannel := "C8TCVL3LN" // #testingbots
+	api := slack.New(token)
+	rtm := api.NewRTM()
+	go rtm.ManageConnection()
+
+	// check if
+	rn := time.Now().UTC()
+	endOfSeason := time.Date(2018, 3, 12, 0, 0, 0, 0, time.UTC) // march 11 is the last game
+	if endOfSeason.After(rn) {
+		go runSaturdayReminderCron(defaultChannel, api)
+	}
 
 Loop:
 	for {
