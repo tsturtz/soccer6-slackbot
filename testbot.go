@@ -10,77 +10,49 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/jasonlvhit/gocron"
 	"github.com/nlopes/slack"
 )
-
-func runSaturdayReminderCron(channel string, api *slack.Client) {
-	gocron.Every(2).Seconds().Do(PostMessage)
-	<-gocron.Start()
-}
-
-func PostMessage(channel string, api *slack.Client) {
-	const (
-		DEFAULT_MESSAGE_USERNAME         = "SoccerBot"
-		DEFAULT_MESSAGE_THREAD_TIMESTAMP = ""
-		DEFAULT_MESSAGE_REPLY_BROADCAST  = false
-		DEFAULT_MESSAGE_ASUSER           = false
-		DEFAULT_MESSAGE_PARSE            = ""
-		DEFAULT_MESSAGE_LINK_NAMES       = 0
-		DEFAULT_MESSAGE_UNFURL_LINKS     = false
-		DEFAULT_MESSAGE_UNFURL_MEDIA     = true
-		DEFAULT_MESSAGE_ICON_URL         = ""
-		DEFAULT_MESSAGE_ICON_EMOJI       = ":soccer:"
-		DEFAULT_MESSAGE_MARKDOWN         = true
-		DEFAULT_MESSAGE_ESCAPE_TEXT      = true
-	)
-	api.PostMessage(channel, "Some text", slack.PostMessageParameters{
-		Username:    DEFAULT_MESSAGE_USERNAME,
-		User:        DEFAULT_MESSAGE_USERNAME,
-		AsUser:      DEFAULT_MESSAGE_ASUSER,
-		Parse:       DEFAULT_MESSAGE_PARSE,
-		LinkNames:   DEFAULT_MESSAGE_LINK_NAMES,
-		Attachments: nil,
-		UnfurlLinks: DEFAULT_MESSAGE_UNFURL_LINKS,
-		UnfurlMedia: DEFAULT_MESSAGE_UNFURL_MEDIA,
-		IconURL:     DEFAULT_MESSAGE_ICON_URL,
-		IconEmoji:   DEFAULT_MESSAGE_ICON_EMOJI,
-		Markdown:    DEFAULT_MESSAGE_MARKDOWN,
-		EscapeText:  DEFAULT_MESSAGE_ESCAPE_TEXT,
-	})
-}
-
-// func task(channel string, api *Client) {
-// 	fmt.Println("running task")
-// 	api.PostMessage(channel, "Hey guys I just came online! :tada: Tag me in a message by typing `@SoccerBot howdy` to see what I can do!", slack.PostMessageParameters{
-// 		Username:    "SoccerBot",
-// 		User:        "SoccerBot",
-// 		AsUser:      false,
-// 		Parse:       "",
-// 		LinkNames:   0,
-// 		Attachments: nil,
-// 		UnfurlLinks: false,
-// 		UnfurlMedia: true,
-// 		IconURL:     "",
-// 		IconEmoji:   ":soccer:",
-// 		Markdown:    true,
-// 		EscapeText:  true,
-// 	})
-// }
 
 func main() {
 
 	token := os.Getenv("SLACK_TOKEN")
-	defaultChannel := "C8TCVL3LN" // #testingbots
+	channel := "C8TCVL3LN" // #testingbots
 	api := slack.New(token)
 	rtm := api.NewRTM()
 	go rtm.ManageConnection()
 
-	// check if
 	rn := time.Now().UTC()
 	endOfSeason := time.Date(2018, 3, 12, 0, 0, 0, 0, time.UTC) // march 11 is the last game
 	if endOfSeason.After(rn) {
-		go runSaturdayReminderCron(defaultChannel, api)
+		api.PostMessage(channel, "Hey guys/girls I just came online! :tada: Tag me in a message by typing `@soccerbot help` to see what I can do!", slack.PostMessageParameters{
+			Username:    "soccerbot",
+			User:        "soccerbot",
+			AsUser:      false,
+			Parse:       "",
+			LinkNames:   0,
+			Attachments: nil,
+			UnfurlLinks: false,
+			UnfurlMedia: true,
+			IconURL:     "",
+			IconEmoji:   ":soccer:",
+			Markdown:    true,
+			EscapeText:  true,
+		})
+	} else {
+		api.PostMessage(channel, "Hey guys/girls I just came online! :tada: Unfortunately the regular season is over and I can't help with much 'til next season.", slack.PostMessageParameters{
+			Username:    "soccerbot",
+			User:        "soccerbot",
+			AsUser:      false,
+			Parse:       "",
+			LinkNames:   0,
+			Attachments: nil,
+			UnfurlLinks: false,
+			UnfurlMedia: true,
+			IconURL:     "",
+			IconEmoji:   ":soccer:",
+			Markdown:    true,
+			EscapeText:  true,
+		})
 	}
 
 Loop:
@@ -179,7 +151,16 @@ func respond(rtm *slack.RTM, msg *slack.MessageEvent, prefix string) {
 		"whens the next game?":   true,
 	}
 
+	hello := map[string]bool{
+		"hi":            true,
+		"hello":         true,
+		"hey":           true,
+		"hey soccerbot": true,
+		"hi soccerbot":  true,
+	}
+
 	if fullSchedule[text] {
+		rtm.SendMessage(rtm.NewOutgoingMessage("_Please be patient while I go check!_ :wink:", msg.Channel))
 		// scrape soccer6 schedule
 		doc, err := goquery.NewDocument("https://soccer6.net/schedule/")
 		if err != nil {
@@ -249,6 +230,7 @@ func respond(rtm *slack.RTM, msg *slack.MessageEvent, prefix string) {
 			rtm.SendMessage(rtm.NewOutgoingMessage(response, msg.Channel))
 		})
 	} else if nextGame[text] {
+		rtm.SendMessage(rtm.NewOutgoingMessage("_Please be patient while I go check!_ :wink:", msg.Channel))
 		// scrape soccer6 schedule
 		doc, err := goquery.NewDocument("https://soccer6.net/schedule/")
 		if err != nil {
@@ -257,7 +239,6 @@ func respond(rtm *slack.RTM, msg *slack.MessageEvent, prefix string) {
 
 		// get current date to compare against game weeks
 		now := time.Now().UTC()
-
 		// set flag to only grab next game
 		nextGameOnly := true
 
@@ -304,11 +285,14 @@ func respond(rtm *slack.RTM, msg *slack.MessageEvent, prefix string) {
 		})
 		// handle no upcoming matches
 		if nextGameOnly == true {
-			response = fmt.Sprintf("%sBummer.%s No upcoming regular season matches til next season. :disappointed:", "*", "*")
+			response = fmt.Sprintf("%sBummer.%s No upcoming regular season matches 'til next season. :disappointed:", "*", "*")
 		}
 		rtm.SendMessage(rtm.NewOutgoingMessage(response, msg.Channel))
+	} else if hello[text] {
+		response := fmt.Sprintf("Hey buddy, let's go play some soccer!! :soccer::runner::dash:")
+		rtm.SendMessage(rtm.NewOutgoingMessage(response, msg.Channel))
 	} else {
-		response := fmt.Sprintf("- Use %snext game%s or simply %snext%s for next game\n- Use %sschedule%s or %sall%s for all games", "*", "*", "*", "*", "*", "*", "*", "*")
+		response := fmt.Sprintf(">Type @soccerbot [your message] and use the following commands:\n- Use %snext game%s or simply %snext%s for next game\n- Use %sschedule%s or %sall%s for all games\n- Use %shey%s for some motivation", "*", "*", "*", "*", "*", "*", "*", "*", "*", "*")
 		rtm.SendMessage(rtm.NewOutgoingMessage(response, msg.Channel))
 	}
 }
