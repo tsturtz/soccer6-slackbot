@@ -13,30 +13,38 @@ import (
 	"github.com/nlopes/slack"
 )
 
+// run daily at 20:00 UTC and then check if it's saturday
 func runSaturdayReminderCron(post *slack.Client, channel string) {
-	gocron.Every(3).Seconds().Do(saturdayReminderCron, post, channel) // (dev) TODO: update this to check env.
-	// gocron.Every(1).Saturday().At("12:00").Do(saturdayReminderCron, post, channel) // (prod)
+	// gocron.Every(3).Seconds().Do(saturdayReminderCron, post, channel) // (dev) TODO: update this to check env.
+	gocron.Every(1).Day().At("20:00").Do(saturdayReminderCron, post, channel) // (prod)
 	<-gocron.Start()
 }
 
 func saturdayReminderCron(post *slack.Client, channel string) {
 	rn := time.Now().UTC()
 	endOfSeason := time.Date(2018, 3, 12, 0, 0, 0, 0, time.UTC) // march 11, 2018 is the last game
+	// only send if season still running
 	if endOfSeason.After(rn) {
-		post.PostMessage(channel, ">>>Hey @channel! It's Saturday - that means there's probably a game tomorrow! Type `@soccerbot next` to find out.", slack.PostMessageParameters{
-			Username:    "soccerbot",
-			User:        "soccerbot",
-			AsUser:      false,
-			Parse:       "",
-			LinkNames:   1,
-			Attachments: nil,
-			UnfurlLinks: false,
-			UnfurlMedia: true,
-			IconURL:     "",
-			IconEmoji:   ":soccer:",
-			Markdown:    true,
-			EscapeText:  true,
-		})
+		// check if it is saturday (library's day of week support is broken)
+		switch time.Now().Weekday() {
+		case time.Saturday:
+			post.PostMessage(channel, ">>>Hey @channel! It's Saturday - that means there's probably a game tomorrow! Type `@soccerbot next` to find out.", slack.PostMessageParameters{
+				Username:    "soccerbot",
+				User:        "soccerbot",
+				AsUser:      false,
+				Parse:       "",
+				LinkNames:   1,
+				Attachments: nil,
+				UnfurlLinks: false,
+				UnfurlMedia: true,
+				IconURL:     "",
+				IconEmoji:   ":soccer:",
+				Markdown:    true,
+				EscapeText:  true,
+			})
+		default:
+			return
+		}
 	} else {
 		post.PostMessage(channel, ">>>Hey it's Saturday but the regular season is over. I can't help anymore because I haven't been able to checkout the playoff schedule in time. :disappointed:\n@taylorsturtz turn off this cron!", slack.PostMessageParameters{
 			Username:    "soccerbot",
@@ -68,7 +76,7 @@ func main() {
 	rn := time.Now().UTC()
 	endOfSeason := time.Date(2018, 3, 12, 0, 0, 0, 0, time.UTC) // march 11, 2018 is the last game
 	if endOfSeason.After(rn) {
-		api.PostMessage(channel, "Hey guys/girls, I was just updated. :sunglasses:\nI just got some minor improvements and I will now auto-send game reminders on Saturday at noon.\nTag me in this channel by typing `@soccerbot help` to see what else I can do!", slack.PostMessageParameters{
+		api.PostMessage(channel, "Hey guys/girls, I was just updated. :sunglasses:\nSorry about the ping this morning - I will explicitly check now if it's Saturday and auto-send game reminders at noon. :wink:\nTag me in this channel by typing `@soccerbot help` to see what else I can do!", slack.PostMessageParameters{
 			Username:    "soccerbot",
 			User:        "soccerbot",
 			AsUser:      false,
